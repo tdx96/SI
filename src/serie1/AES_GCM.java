@@ -8,13 +8,18 @@ import java.security.SecureRandom;
 
 public class AES_GCM {
 
-    private SecretKey key;
     private GCMParameterSpec spec;
     private Cipher cipher;
     private SecureRandom random;
     private int AES_KEY_SIZE;
     private int GCM_NONCE_LENGTH;
     private int GCM_TAG_LENGTH;
+    private byte[] encryptKey;
+    private AES_RSA aes_rsa;
+    private static String[] certFiles = {"C:\\Users\\Tiago\\Desktop\\SE1\\cert.end.entities\\Alice_1.cer",
+            "C:\\Users\\Tiago\\Desktop\\SE1\\cert.CAintermedia\\CA1-int.cer",
+            "C:\\Users\\Tiago\\Desktop\\SE1\\trust.anchors\\CA1.cer"};
+    private static String keystore = "C:\\Users\\Tiago\\Desktop\\SE1\\pfx\\Alice_1.pfx";
 
     public AES_GCM(){
         AES_KEY_SIZE = 128;
@@ -28,26 +33,25 @@ public class AES_GCM {
         GCM_TAG_LENGTH = gcm_tag_length_bytes;
     }
 
-    public void init() throws Exception{
+    public byte[] encrypt(String msg) throws Exception{
         random = SecureRandom.getInstanceStrong();
         KeyGenerator keyGen = KeyGenerator.getInstance("AES");
         keyGen.init(AES_KEY_SIZE, random);
-        key = keyGen.generateKey();
+        SecretKey key = keyGen.generateKey();
 
         cipher = Cipher.getInstance("AES/GCM/NoPadding");
         final byte[] nonce = new byte[GCM_NONCE_LENGTH];
         random.nextBytes(nonce);
         spec = new GCMParameterSpec(GCM_TAG_LENGTH*8, nonce);
-    }
-
-    public byte[] encrypt(String msg) throws Exception{
-        byte[] input = msg.getBytes();
         cipher.init(Cipher.ENCRYPT_MODE, key, spec);
-        return cipher.doFinal(input);
+        aes_rsa = new AES_RSA();
+        aes_rsa.init(certFiles, keystore );
+        encryptKey = aes_rsa.encrypt(key);
+        return cipher.doFinal(msg.getBytes());
     }
 
-    public byte[] decrypt(byte[] c) throws Exception{
-        cipher.init(Cipher.DECRYPT_MODE, key, spec);
+    public byte[] decrypt(byte[] c, String password) throws Exception{
+        cipher.init(Cipher.DECRYPT_MODE, aes_rsa.decrypt(encryptKey, password), spec);
         return cipher.doFinal(c);
     }
 }
